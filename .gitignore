@@ -1,0 +1,27 @@
+# Secrets and local configuration — never commit
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local data
+*.db
+*.sqlite3
+/exports/
+/local_media/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

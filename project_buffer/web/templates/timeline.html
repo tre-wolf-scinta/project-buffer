@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% from "_macros.html" import message_card, pager %}
+{% set section = "timeline" %}
+{% block title %}Timeline, page {{ page }}{% endblock %}
+{% block content %}
+<h1>Timeline</h1>
+<p>Every message in both directions, newest first. Messages from {{ settings.coparent_display_name }} are shown as filtered summaries.</p>
+{% if cards %}
+  {% for card in cards %}
+    {{ message_card(card, csrf_token, "", 2) }}
+  {% endfor %}
+{% else %}
+  <p>No messages yet.</p>
+{% endif %}
+{{ pager("/timeline?", page, has_more, "Timeline") }}
+{% endblock %}

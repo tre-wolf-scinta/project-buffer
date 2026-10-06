@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% set section = "inbox" %}
+{# The title deliberately says nothing about the content. #}
+{% block title %}Original message{% endblock %}
+{% block content %}
+<h1>Original message</h1>
+<p class="meta">Received <time datetime="{{ card.when_iso }}">{{ card.when }}</time> from {{ message.from_number }}. Exactly as received. Unfiltered.</p>
+<p><a class="button" href="/messages/{{ card.id }}">Leave and go back to the filtered summary</a></p>
+
+<section aria-labelledby="original-heading">
+  <h2 id="original-heading">Unfiltered text</h2>
+  {% if body %}
+  <p class="message-text">{{ body }}</p>
+  {% else %}
+  <p>The message has no text.</p>
+  {% endif %}
+</section>
+
+{% if attachments %}
+<section aria-labelledby="attachments-heading">
+  <h2 id="attachments-heading">Attachments</h2>
+  <p>Attachments are unfiltered. Each one downloads as a file only when you choose it.</p>
+  <ul>
+    {% for attachment in attachments %}
+    <li>
+      Attachment {{ attachment.position + 1 }}, {{ attachment.content_type }}{% if attachment.size_bytes %}, {{ (attachment.size_bytes / 1024)|round|int }} kilobytes{% endif %}.
+      {% if attachment.status == stored %}
+      <form method="post" action="/messages/{{ message.id }}/attachments/{{ attachment.id }}">
+        {{ csrf(csrf_token) }}
+        <button type="submit" class="secondary">Download attachment {{ attachment.position + 1 }}</button>
+      </form>
+      {% elif attachment.status.value == "pending" %}
+      Still being retrieved.
+      {% else %}
+      Could not be retrieved from the carrier.
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<p><a href="/messages/{{ card.id }}">Back to the filtered summary</a></p>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, error_box %}
+{% set section = "export" %}
+{% block title %}Export records{% endblock %}
+{% block content %}
+<h1>Export records</h1>
+<p>Downloads a ZIP file with message metadata, filtered summaries, delivery records and the audit trail for the dates you choose. Summaries and originals are kept in separate files.</p>
+{{ error_box(error) }}
+<form method="post" action="/export">
+  {{ csrf(csrf_token) }}
+  <label for="start_date">Start date</label>
+  <p id="date-help" class="hint">Year, month, day. For example 2026-01-31.</p>
+  <input type="date" id="start_date" name="start_date" value="{{ default_start }}" required aria-describedby="date-help">
+  <label for="end_date">End date</label>
+  <input type="date" id="end_date" name="end_date" value="{{ default_end }}" required aria-describedby="date-help">
+  <div class="checkbox">
+    <input type="checkbox" id="include_originals" name="include_originals" value="1" aria-describedby="originals-help">
+    <label for="include_originals">Include unfiltered originals and attachments</label>
+  </div>
+  <p id="originals-help" class="hint">The download will then contain the exact original messages, unencrypted. Store it carefully. This page does not display them.</p>
+  <button type="submit">Download export</button>
+</form>
+{% endblock %}

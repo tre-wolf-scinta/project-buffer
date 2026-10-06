@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, error_box %}
+{% set section = "account" %}
+{% block title %}Account{% endblock %}
+{% block content %}
+<h1>Account and security</h1>
+{{ error_box(error) }}
+<p>Signed in as {{ auth.username }}. Two-step sign-in is on. You have {{ recovery_remaining }} unused recovery {{ "code" if recovery_remaining == 1 else "codes" }}.</p>
+
+<section aria-labelledby="password-heading">
+  <h2 id="password-heading">Change password</h2>
+  <form method="post" action="/account/password">
+    {{ csrf(csrf_token) }}
+    <label for="pw-current">Current password</label>
+    <input type="password" id="pw-current" name="current_password" required autocomplete="current-password">
+    <label for="pw-new">New password</label>
+    <p id="pw-help" class="hint">At least 12 characters.</p>
+    <input type="password" id="pw-new" name="new_password" required minlength="12" autocomplete="new-password" aria-describedby="pw-help">
+    <label for="pw-confirm">New password again</label>
+    <input type="password" id="pw-confirm" name="confirm_password" required minlength="12" autocomplete="new-password">
+    <button type="submit">Change password</button>
+  </form>
+</section>
+
+<section aria-labelledby="codes-heading">
+  <h2 id="codes-heading">New recovery codes</h2>
+  <p>Creates ten new codes and cancels the old ones.</p>
+  <form method="post" action="/account/recovery-codes">
+    {{ csrf(csrf_token) }}
+    <label for="rc-current">Current password</label>
+    <input type="password" id="rc-current" name="current_password" required autocomplete="current-password">
+    <button type="submit" class="secondary">Create new recovery codes</button>
+  </form>
+</section>
+
+<section aria-labelledby="mfa-heading">
+  <h2 id="mfa-heading">Move to a new authenticator</h2>
+  <p>Turns off your current authenticator and starts setup again. You stay signed in on this device.</p>
+  <form method="post" action="/account/mfa/reset">
+    {{ csrf(csrf_token) }}
+    <label for="mfa-current">Current password</label>
+    <input type="password" id="mfa-current" name="current_password" required autocomplete="current-password">
+    <button type="submit" class="secondary">Set up a new authenticator</button>
+  </form>
+</section>
+
+<section aria-labelledby="sessions-heading">
+  <h2 id="sessions-heading">Other devices</h2>
+  <form method="post" action="/account/sessions/revoke">
+    {{ csrf(csrf_token) }}
+    <button type="submit" class="secondary">Sign out all other devices</button>
+  </form>
+</section>
+{% endblock %}

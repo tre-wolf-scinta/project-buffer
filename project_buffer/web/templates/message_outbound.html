@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, message_card %}
+{% set section = "timeline" %}
+{% block title %}{{ card.topic }}, {{ card.when }}{% endblock %}
+{% block content %}
+<h1>{{ card.topic }}</h1>
+<p class="meta">Approved by you, <time datetime="{{ card.when_iso }}">{{ card.when }}</time>.</p>
+
+<section aria-labelledby="status-heading">
+  <h2 id="status-heading">Delivery status</h2>
+  <p><strong>{{ card.delivery_label }}.</strong></p>
+  {% if failure_reason %}
+  <p>{{ failure_reason }}</p>
+  <form method="post" action="/messages/{{ card.id }}/retry">
+    {{ csrf(csrf_token) }}
+    <button type="submit">Copy this text into a new draft</button>
+  </form>
+  {% endif %}
+  {% if events %}
+  <h3>Carrier updates</h3>
+  <ul>{% for when, status in events %}<li>{{ when }}: {{ status }}</li>{% endfor %}</ul>
+  {% endif %}
+</section>
+
+<section aria-labelledby="text-heading">
+  <h2 id="text-heading">Exact text</h2>
+  <p class="message-text">{{ body }}</p>
+</section>
+
+{% if in_reply_to %}
+<section aria-labelledby="context-heading">
+  <h2 id="context-heading">In reply to</h2>
+  {{ message_card(in_reply_to, csrf_token, "", 3) }}
+</section>
+{% endif %}
+
+<p><a href="/inbox">Back to inbox</a></p>
+{% endblock %}

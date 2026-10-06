@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, error_box %}
+{% block title %}Set up two-step sign-in{% endblock %}
+{% block content %}
+<h1>Set up two-step sign-in</h1>
+<p>This account requires a code from an authenticator app each time you sign in. Any standard app works, such as Google Authenticator, Microsoft Authenticator or 1Password.</p>
+{{ error_box(error) }}
+
+<section aria-labelledby="step1-heading">
+  <h2 id="step1-heading">Step 1: add this account to your authenticator app</h2>
+  <p>On the phone that has your authenticator app, choose this link. No camera or QR code is needed.</p>
+  <p><a class="button" href="{{ otpauth_uri }}">Open in authenticator app</a></p>
+  <p>If the link does nothing, add an account in the app by hand, choose "enter a setup key", and type this key. Spaces do not matter.</p>
+  <p><span class="visually-hidden">Setup key: </span><code class="secret">{{ secret_grouped }}</code></p>
+</section>
+
+<section aria-labelledby="step2-heading">
+  <h2 id="step2-heading">Step 2: enter the code the app shows</h2>
+  <form method="post" action="/account/mfa/setup">
+    {{ csrf(csrf_token) }}
+    <label for="code">6-digit code</label>
+    <input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required{% if error %} aria-invalid="true"{% endif %}>
+    <button type="submit">Turn on two-step sign-in</button>
+  </form>
+</section>
+{% endblock %}

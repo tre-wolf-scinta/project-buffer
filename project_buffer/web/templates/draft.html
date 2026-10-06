@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, error_box %}
+{% set section = "drafts" %}
+{% block title %}Edit draft{% endblock %}
+{% block content %}
+<h1>Draft to {{ settings.coparent_display_name }}</h1>
+<p><strong>Not sent.</strong> Nothing is sent until you review and approve it on the next page.</p>
+{{ error_box(error) }}
+
+{% if card %}
+<p class="meta">In reply to: {{ card.heading }}, {{ card.when }}. <a href="/messages/{{ card.id }}">View that message</a></p>
+{% endif %}
+
+{% if draft.ai_notes %}
+<section aria-labelledby="notes-heading">
+  <h2 id="notes-heading">Notes about this draft</h2>
+  <ul>{% for note in draft.ai_notes %}<li>{{ note }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+<form method="post" action="/drafts/{{ draft.id }}" data-busy-text="Working.">
+  {{ csrf(csrf_token) }}
+
+  <h2 id="text-heading">Message text</h2>
+  <label for="body">Text to send</label>
+  <p id="body-help" class="hint">Edit freely. The limit is {{ max_length }} characters. This draft is {{ draft.body|length }} characters.</p>
+  <textarea id="body" name="body" rows="8" maxlength="{{ max_length }}" aria-describedby="body-help"{% if error %} aria-invalid="true"{% endif %}>{{ draft.body }}</textarea>
+  <ul class="actions">
+    <li><button type="submit" name="action" value="review">Review before sending</button></li>
+    <li><button type="submit" name="action" value="save" class="secondary">Save draft</button></li>
+  </ul>
+
+  <h2 id="redraft-heading">Have the draft rewritten</h2>
+  <label for="instruction">What you want to say</label>
+  <p id="instruction-help" class="hint">Change this and choose Redraft to replace the text above with a new draft.</p>
+  <textarea id="instruction" name="instruction" rows="4" aria-describedby="instruction-help">{{ draft.instruction }}</textarea>
+  <ul class="actions">
+    <li><button type="submit" name="action" value="redraft" class="secondary">Redraft</button></li>
+    <li><button type="submit" name="action" value="discard" class="secondary">Discard this draft</button></li>
+  </ul>
+</form>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% set section = "drafts" %}
+{% block title %}Drafts{% endblock %}
+{% block content %}
+<h1>Unsent drafts</h1>
+{% if drafts %}
+<ul class="plain-list">
+  {% for draft in drafts %}
+  <li class="card">
+    <h2>Draft {{ loop.index }}{% if draft.in_reply_to and draft.in_reply_to.current_analysis %}, replying about {{ draft.in_reply_to.current_analysis.topic }}{% endif %}</h2>
+    <p class="message-text">{{ draft.body or "No text yet." }}</p>
+    <p><a class="button" href="/drafts/{{ draft.id }}">Continue draft {{ loop.index }}</a></p>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p>You have no unsent drafts.</p>
+{% endif %}
+<p><a class="button secondary" href="/compose">Start a new message</a></p>
+{% endblock %}

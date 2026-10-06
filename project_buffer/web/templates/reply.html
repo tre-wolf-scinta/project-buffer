@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, error_box %}
+{% set section = "inbox" if card else "compose" %}
+{% block title %}{{ "Reply: " ~ card.topic if card else "New message" }}{% endblock %}
+{% block content %}
+<h1>{{ "Reply to " ~ settings.coparent_display_name if card else "New message to " ~ settings.coparent_display_name }}</h1>
+{{ error_box(error) }}
+
+{% if card %}
+<section aria-labelledby="context-heading">
+  <h2 id="context-heading">You are replying to</h2>
+  <p>{{ card.heading }}. {{ card.summary }}</p>
+  {% if card.requests %}
+  <ul>{% for item in card.requests %}<li>{{ item }}</li>{% endfor %}</ul>
+  {% endif %}
+</section>
+{% endif %}
+
+<form method="post" action="{{ action }}" data-busy-text="Writing a draft. This can take up to a minute.">
+  {{ csrf(csrf_token) }}
+  <label for="instruction">What do you want to say?</label>
+  <p id="instruction-help" class="hint">Say it in your own words, typed or dictated. A calm, brief draft will be written for you to review and edit. Nothing is sent until you approve it.</p>
+  <textarea id="instruction" name="instruction" rows="5" required aria-describedby="instruction-help"{% if error %} aria-invalid="true"{% endif %}></textarea>
+  <button type="submit">Write a draft</button>
+</form>
+
+<p><a href="{{ "/messages/" ~ card.id if card else "/inbox" }}">Cancel</a></p>
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, message_card %}
+{% set section = "inbox" %}
+{% block title %}{{ card.heading }}{% endblock %}
+{% block content %}
+<h1>{{ card.heading }}</h1>
+<p class="meta">
+  {{ card.sender }}, <time datetime="{{ card.when_iso }}">{{ card.when }}</time>.
+  {% if card.handled %}Handled.{% endif %}
+</p>
+
+{% if card.state == "quarantined" %}
+<p>This message came from a number that is not your co-parent's configured number. It is saved, but it has not been filtered or summarized, and nothing about its content is shown here.</p>
+<p>If you recognize the sender, you can process it. It will then be filtered like any other message.</p>
+<form method="post" action="/messages/{{ card.id }}/reprocess" data-busy-text="Queuing the message for filtering.">
+  {{ csrf(csrf_token) }}
+  <button type="submit">Process this message</button>
+</form>
+<p><a href="/messages/{{ card.id }}/original">View original message</a></p>
+
+{% elif card.state == "pending" %}
+<p>{{ card.summary }} This usually takes under a minute. Reload this page to check.</p>
+<p><a class="button" href="/messages/{{ card.id }}">Reload</a></p>
+
+{% elif card.state == "failed" %}
+<p>{{ card.summary }}</p>
+<form method="post" action="/messages/{{ card.id }}/reprocess" data-busy-text="Queuing the message for filtering.">
+  {{ csrf(csrf_token) }}
+  <button type="submit">Retry filtering</button>
+</form>
+<p><a href="/messages/{{ card.id }}/original">View original message</a></p>
+
+{% else %}
+<p class="provenance">AI-generated summary. This is not the original message.</p>
+
+<section aria-labelledby="summary-heading">
+  <h2 id="summary-heading">Summary</h2>
+  <p>{{ result.short_summary }}</p>
+  <dl class="facts">
+    <dt>Urgency</dt>
+    <dd>{{ card.urgency_label }}{% if message.urgency_overridden %} (set by you){% endif %}</dd>
+    <dt>Response needed</dt>
+    <dd>{{ "Yes" if card.response_needed else "No" }}{% if result.response_deadline %}, by {{ result.response_deadline }}{% endif %}</dd>
+    {% if flags %}
+    <dt>Concerns</dt>
+    <dd>{{ flags|join(", ") }}</dd>
+    {% endif %}
+    <dt>Personal commentary</dt>
+    <dd>{{ "Omitted" if result.omitted_content_present else "None" }}</dd>
+    {% if message.num_media %}
+    <dt>Attachments</dt>
+    <dd>{{ message.num_media }}, not shown. Attachments are not filtered. Open them from the original message.{% if result.attachments_description %} The sender says: {{ result.attachments_description }}{% endif %}</dd>
+    {% endif %}
+    <dt>Confidence</dt>
+    <dd>{{ result.confidence.value|capitalize }}</dd>
+  </dl>
+  {% if safety_keywords %}
+  <p><strong>Note:</strong> the original contains safety-related terms. If this summary seems incomplete, view the original.</p>
+  {% endif %}
+</section>
+
+{% for section_item in sections %}
+<section aria-labelledby="s-{{ loop.index }}">
+  <h2 id="s-{{ loop.index }}">{{ section_item.title }}</h2>
+  {% if section_item.note %}<p class="meta">{{ section_item.note }}</p>{% endif %}
+  <ul>{% for item in section_item.items %}<li>{{ item }}</li>{% endfor %}</ul>
+</section>
+{% endfor %}
+
+{% if omitted_labels %}
+<details>
+  <summary>What kind of content was omitted</summary>
+  <p>Categories only: {{ omitted_labels|join(", ") }}.</p>
+</details>
+{% endif %}
+
+<section aria-labelledby="actions-heading">
+  <h2 id="actions-heading">Actions</h2>
+  <ul class="actions">
+    {% if open_draft %}
+    <li><a class="button" href="/drafts/{{ open_draft.id }}">Continue your draft reply</a></li>
+    {% else %}
+    <li><a class="button" href="/messages/{{ card.id }}/reply">Reply</a></li>
+    {% endif %}
+    <li>
+      <form method="post" action="/messages/{{ card.id }}/handled">
+        {{ csrf(csrf_token) }}
+        <input type="hidden" name="handled" value="{{ "0" if card.handled else "1" }}">
+        <button type="submit" class="secondary">{{ "Mark not handled" if card.handled else "Mark handled" }}</button>
+      </form>
+    </li>
+    <li><a class="button secondary" href="/messages/{{ card.id }}/original">View original message</a></li>
+  </ul>
+
+  <form method="post" action="/messages/{{ card.id }}/urgency" class="inline-form">
+    {{ csrf(csrf_token) }}
+    <label for="urgency">Change urgency</label>
+    <select id="urgency" name="urgency">
+      {% for value, label in urgency_options %}
+      <option value="{{ value }}"{% if value == card.urgency.value %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="secondary">Save urgency</button>
+  </form>
+
+  <form method="post" action="/messages/{{ card.id }}/reprocess" data-busy-text="Queuing the message for filtering.">
+    {{ csrf(csrf_token) }}
+    <button type="submit" class="secondary">Filter this message again</button>
+  </form>
+</section>
+{% endif %}
+
+{% if replies %}
+<section aria-labelledby="replies-heading">
+  <h2 id="replies-heading">Your replies</h2>
+  {% for reply in replies %}
+    {{ message_card(reply, csrf_token, "", 3) }}
+  {% endfor %}
+</section>
+{% endif %}
+
+<p><a href="/inbox">Back to inbox</a></p>
+{% endblock %}

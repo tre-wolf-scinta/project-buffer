@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, error_box %}
+{% block title %}Enter your code{% endblock %}
+{% block content %}
+<h1>Enter your authentication code</h1>
+{{ error_box(error) }}
+<form method="post" action="/login/verify">
+  {{ csrf(csrf_token) }}
+  <input type="hidden" name="next" value="{{ next_url }}">
+  <label for="code">6-digit code from your authenticator app</label>
+  <input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7">
+  <button type="submit">Verify</button>
+</form>
+
+<section aria-labelledby="recovery-heading">
+  <h2 id="recovery-heading">No access to your authenticator?</h2>
+  <form method="post" action="/login/verify">
+    {{ csrf(csrf_token) }}
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <label for="recovery_code">Recovery code</label>
+    <p id="recovery-help" class="hint">Each recovery code works once.</p>
+    <input type="text" id="recovery_code" name="recovery_code" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="recovery-help">
+    <button type="submit" class="secondary">Use recovery code</button>
+  </form>
+</section>
+{% endblock %}

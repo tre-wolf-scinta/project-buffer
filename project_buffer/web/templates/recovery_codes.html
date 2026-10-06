@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% set section = "account" %}
+{% block title %}Save your recovery codes{% endblock %}
+{% block content %}
+<h1>Save your recovery codes</h1>
+<p><strong>These codes are shown only once.</strong> Each one lets you sign in a single time if you lose your authenticator. Save them in a password manager or another safe place now.</p>
+<ol class="codes" aria-label="Recovery codes">
+  {% for code in codes %}<li><code>{{ code }}</code></li>{% endfor %}
+</ol>
+<label for="codes-text">All codes as text, for copying</label>
+<textarea id="codes-text" rows="{{ codes|length }}" readonly>{{ codes|join("\n") }}</textarea>
+<p><a class="button" href="/inbox">I have saved them. Continue to inbox</a></p>
+{% endblock %}

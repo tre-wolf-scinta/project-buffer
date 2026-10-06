@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light dark">
+<meta name="apple-mobile-web-app-title" content="Buffer">
+{# The notice leads the title because screen readers announce the title first on page load. #}
+<title>{% if notice %}{{ notice }} {% endif %}{% block title %}{% endblock %} - Buffer</title>
+<link rel="stylesheet" href="/static/app.css">
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="icon" href="/static/icon-192.png">
+<link rel="apple-touch-icon" href="/static/icon-180.png">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+<header class="site-header">
+  <p class="brand">Buffer</p>
+  {% if nav %}
+  <nav aria-label="Main">
+    <ul>
+      <li><a href="/inbox"{% if section == "inbox" %} aria-current="page"{% endif %}>Inbox{% if nav.unread %} ({{ nav.unread }} unread){% endif %}</a></li>
+      <li><a href="/compose"{% if section == "compose" %} aria-current="page"{% endif %}>New message</a></li>
+      <li><a href="/drafts"{% if section == "drafts" %} aria-current="page"{% endif %}>Drafts ({{ nav.drafts }})</a></li>
+      <li><a href="/timeline"{% if section == "timeline" %} aria-current="page"{% endif %}>Timeline</a></li>
+      <li><a href="/search"{% if section == "search" %} aria-current="page"{% endif %}>Search</a></li>
+      <li><a href="/export"{% if section == "export" %} aria-current="page"{% endif %}>Export</a></li>
+      <li><a href="/account"{% if section == "account" %} aria-current="page"{% endif %}>Account</a></li>
+    </ul>
+  </nav>
+  {% endif %}
+</header>
+<main id="main" tabindex="-1">
+  {% if notice %}
+  <p class="notice" id="notice" role="status" tabindex="-1" data-focus-on-load>{{ notice }}</p>
+  {% endif %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="site-footer">
+  {% if auth %}
+  <form method="post" action="/logout">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="submit" class="secondary">Sign out</button>
+  </form>
+  {% endif %}
+</footer>
+{# Filled by app.js for changes that happen without a page load. #}
+<div id="live-region" class="visually-hidden" role="status" aria-live="polite"></div>
+</body>
+</html>

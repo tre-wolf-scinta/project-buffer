@@ -1,0 +1,72 @@
+{% macro csrf(token) %}<input type="hidden" name="csrf_token" value="{{ token }}">{% endmacro %}
+
+{% macro error_box(error) %}
+{% if error %}
+<div class="error" id="error" role="alert" tabindex="-1" data-focus-on-load>
+  <h2>There is a problem</h2>
+  <p>{{ error }}</p>
+</div>
+{% endif %}
+{% endmacro %}
+
+{% macro message_card(card, token, return_to="inbox", level=2) %}
+{% set sub = level + 1 %}
+<article class="card{% if card.elevated %} card-elevated{% endif %}" aria-labelledby="m-{{ card.id }}">
+  <h{{ level }} id="m-{{ card.id }}">{{ card.heading }}</h{{ level }}>
+  <p class="meta">
+    {{ card.sender }}, <time datetime="{{ card.when_iso }}">{{ card.when }}</time>.
+    {% if card.unread %}<strong>Unread.</strong>{% endif %}
+    {% if card.handled and card.state != "outbound" %}Handled.{% endif %}
+    {% if card.delivery_label %}Status: {{ card.delivery_label }}.{% endif %}
+  </p>
+  {% if card.summary %}<p>{{ card.summary }}</p>{% endif %}
+  {% if card.requests %}
+  <h{{ sub }}>{{ "Request" if card.requests|length == 1 else "Requests" }}</h{{ sub }}>
+  <ul>{% for item in card.requests %}<li>{{ item }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if card.information %}
+  <h{{ sub }}>Relevant information</h{{ sub }}>
+  <ul>{% for item in card.information %}<li>{{ item }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if card.state == "processed" %}
+  <p>
+    Response needed: {{ "Yes" if card.response_needed else "No" }}.
+    {% if card.omitted %}Personal commentary: omitted.{% endif %}
+    {% if card.num_attachments %}Attachments: {{ card.num_attachments }}, not shown.{% endif %}
+  </p>
+  {% endif %}
+  <ul class="actions">
+    {% if card.state == "outbound" %}
+    <li><a class="button" href="/messages/{{ card.id }}">View sent message<span class="visually-hidden"> {{ card.context }}</span></a></li>
+    {% elif card.state == "quarantined" %}
+    <li><a class="button" href="/messages/{{ card.id }}">Review<span class="visually-hidden"> message from {{ card.sender }}, {{ card.when }}</span></a></li>
+    {% else %}
+    {% if card.state == "processed" %}
+    <li><a class="button" href="/messages/{{ card.id }}/reply">Reply<span class="visually-hidden"> to message {{ card.context }}</span></a></li>
+    {% endif %}
+    <li>
+      <form method="post" action="/messages/{{ card.id }}/handled">
+        {{ csrf(token) }}
+        <input type="hidden" name="handled" value="{{ "0" if card.handled else "1" }}">
+        <input type="hidden" name="return_to" value="{{ return_to }}">
+        <button type="submit" class="secondary">{{ "Mark not handled" if card.handled else "Mark handled" }}<span class="visually-hidden">: message {{ card.context }}</span></button>
+      </form>
+    </li>
+    <li><a class="button secondary" href="/messages/{{ card.id }}">View details<span class="visually-hidden"> of message {{ card.context }}</span></a></li>
+    <li><a class="button secondary" href="/messages/{{ card.id }}/original">View original<span class="visually-hidden"> of message {{ card.context }}</span></a></li>
+    {% endif %}
+  </ul>
+</article>
+{% endmacro %}
+
+{% macro pager(base, page, has_more, label) %}
+{% if page > 1 or has_more %}
+<nav class="pager" aria-label="{{ label }} pages">
+  <ul>
+    {% if page > 1 %}<li><a class="button secondary" href="{{ base }}page={{ page - 1 }}">Newer messages</a></li>{% endif %}
+    <li>Page {{ page }}</li>
+    {% if has_more %}<li><a class="button secondary" href="{{ base }}page={{ page + 1 }}">Older messages</a></li>{% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% endmacro %}

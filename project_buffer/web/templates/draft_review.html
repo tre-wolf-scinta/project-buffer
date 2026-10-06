@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% set section = "drafts" %}
+{% block title %}Review before sending{% endblock %}
+{% block content %}
+<h1>Review before sending</h1>
+<p>This exact text will be sent to {{ settings.coparent_display_name }} as a text message. It has not been sent yet.</p>
+
+<section aria-labelledby="exact-heading">
+  <h2 id="exact-heading">Exact text to send</h2>
+  <p class="message-text" id="exact-text">{{ draft.body }}</p>
+  <p class="meta">{{ draft.body|length }} characters.</p>
+</section>
+
+<ul class="actions">
+  <li>
+    <form method="post" action="/drafts/{{ draft.id }}/send" data-busy-text="Sending. Please wait." data-submit-once>
+      {{ csrf(csrf_token) }}
+      <input type="hidden" name="reviewed_digest" value="{{ digest }}">
+      <input type="hidden" name="approve" value="yes">
+      <button type="submit" aria-describedby="exact-text">Approve and send</button>
+    </form>
+  </li>
+  <li><a class="button secondary" href="/drafts/{{ draft.id }}">Go back and edit</a></li>
+</ul>
+{% endblock %}

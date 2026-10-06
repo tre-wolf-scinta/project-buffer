@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "_macros.html" import message_card, pager %}
+{% set section = "inbox" %}
+{% block title %}Inbox, {{ active_label }}{% endblock %}
+{% block content %}
+<h1>Inbox</h1>
+
+{# app.js compares this count with /inbox/status and announces new arrivals. #}
+<p id="new-messages" class="notice" role="status" data-unread="{{ unread }}" hidden>
+  <span id="new-messages-text"></span>
+  <a href="/inbox">Reload inbox</a>
+</p>
+
+<nav aria-label="Inbox filters">
+  <ul class="filters">
+    {% for value, label, count in filters %}
+    <li><a href="/inbox?filter={{ value.value }}"{% if value == active %} aria-current="true"{% endif %}>{{ label }} ({{ count }})</a></li>
+    {% endfor %}
+  </ul>
+</nav>
+
+{% if drafts and page == 1 %}
+<p><a href="/drafts">You have {{ drafts|length }} unsent {{ "draft" if drafts|length == 1 else "drafts" }}.</a></p>
+{% endif %}
+
+<section aria-labelledby="list-heading">
+  <h2 id="list-heading" class="visually-hidden">{{ active_label }} messages, page {{ page }}</h2>
+  {% if cards %}
+    {% for card in cards %}
+      {{ message_card(card, csrf_token, "inbox", 3) }}
+    {% endfor %}
+  {% else %}
+    <p>No messages in {{ active_label }}.</p>
+  {% endif %}
+</section>
+
+{{ pager("/inbox?filter=" ~ active.value ~ "&", page, has_more, "Inbox") }}
+{% endblock %}

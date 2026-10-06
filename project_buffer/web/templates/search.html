@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf, message_card %}
+{% set section = "search" %}
+{% block title %}{% if results is not none %}{{ results|length }} search {{ "result" if results|length == 1 else "results" }}{% else %}Search{% endif %}{% endblock %}
+{% block content %}
+<h1>Search</h1>
+<form method="post" action="/search" role="search" aria-label="Messages">
+  {{ csrf(csrf_token) }}
+  <label for="q">Search for</label>
+  <input type="search" id="q" name="q" value="{{ term }}" required autocomplete="off">
+  <div class="checkbox">
+    <input type="checkbox" id="include_originals" name="include_originals" value="1" aria-describedby="originals-help"{% if include_originals %} checked{% endif %}>
+    <label for="include_originals">Also search unfiltered originals</label>
+  </div>
+  <p id="originals-help" class="hint">Off by default. When on, results still show only filtered summaries. Original text is never shown in results.</p>
+  <button type="submit">Run search</button>
+</form>
+
+{% if results is not none %}
+<section aria-labelledby="results-heading">
+  <h2 id="results-heading" tabindex="-1" data-focus-on-load>{{ results|length }} {{ "result" if results|length == 1 else "results" }} for "{{ term }}"</h2>
+  {% for card, original_only in results %}
+    {% if original_only %}<p class="meta">The next message matched in its original text only. The words you searched for are not in its summary.</p>{% endif %}
+    {{ message_card(card, csrf_token, "", 3) }}
+  {% endfor %}
+</section>
+{% endif %}
+{% endblock %}

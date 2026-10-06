@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% from "_macros.html" import csrf %}
+{% set section = "inbox" %}
+{% block title %}Confirm viewing original{% endblock %}
+{% block content %}
+<h1>View the original message?</h1>
+<p><strong>You're about to view the unfiltered original message.</strong></p>
+<p>It is shown exactly as it was received and may contain hostile or abusive language. The filtered summary of this message is about: {{ card.topic }}.</p>
+{% if message.num_media %}
+<p>This message has {{ message.num_media }} {{ "attachment" if message.num_media == 1 else "attachments" }}. Attachments are not filtered either. They are not opened automatically.</p>
+{% endif %}
+<ul class="actions">
+  <li><a class="button" href="/messages/{{ card.id }}">Go back to the filtered summary</a></li>
+  <li>
+    <form method="post" action="/messages/{{ card.id }}/original">
+      {{ csrf(csrf_token) }}
+      <input type="hidden" name="confirm" value="yes">
+      <button type="submit" class="secondary">Show the unfiltered original</button>
+    </form>
+  </li>
+</ul>
+{% endblock %}
