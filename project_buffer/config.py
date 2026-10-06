@@ -38,6 +38,15 @@ class Settings(BaseSettings):
     # Comma-separated first names; helps the model recognise who is a child.
     children_names: str = ""
     owner_timezone: str = "America/New_York"
+    # Name shown on the public Privacy Policy and Terms pages. Carriers require it to
+    # match the registered A2P brand name.
+    sms_brand_name: str = ""
+    # What a caller hears. This number is text-only; calls are never connected.
+    voice_greeting: str = (
+        "This number accepts text messages only. Calls are not answered and voicemail is "
+        "not available. Please send a text message instead. If this is an emergency, "
+        "hang up and call 9 1 1."
+    )
 
     llm_provider: Literal["anthropic", "openai", "fake"] = "fake"
     llm_model: str = ""

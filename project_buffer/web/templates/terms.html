@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Terms &amp; Conditions{% endblock %}
+{% block content %}
+<h1>Terms &amp; Conditions</h1>
+<p>These terms cover the text messaging number {{ number }}, operated by {{ brand }}.</p>
+
+<h2>SMS Terms</h2>
+<ul>
+  <li><strong>What this is:</strong> a private number used by {{ brand }} for two-way personal communication between two parents about their children. No marketing or promotional messages are sent.</li>
+  <li><strong>Who receives messages:</strong> only {{ brand }} and the other parent, who starts or continues the conversation by texting this number.</li>
+  <li><strong>Message frequency:</strong> varies with the conversation.</li>
+  <li><strong>Cost:</strong> Message and data rates may apply.</li>
+  <li><strong>To stop:</strong> reply STOP to stop receiving texts from this number. You can text START to resume.</li>
+  <li><strong>For help:</strong> reply HELP.</li>
+  <li><strong>Calls:</strong> this number accepts text messages only. Calls are not answered and voicemail is not available.</li>
+  <li><strong>Carriers:</strong> phone carriers are not liable for delayed or undelivered messages.</li>
+</ul>
+
+<h2>Records</h2>
+<p>Messages sent to and from this number are stored and processed as described in the <a href="/privacy">Privacy Policy</a>.</p>
+
+<h2>Emergencies</h2>
+<p>This number is not monitored for emergencies. In an emergency call 911.</p>
+{% endblock %}

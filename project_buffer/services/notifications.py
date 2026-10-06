@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Mapping
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
@@ -52,10 +53,28 @@ def _with_link(text: str, link: str) -> str:
     return f"{_truncate(text, MAX_SMS_CHARS - len(link) - 1)} {link}"
 
 
-def build_text(settings: Settings, kind: NotificationKind, message: Message | None) -> str | None:
+def build_text(
+    settings: Settings,
+    kind: NotificationKind,
+    message: Message | None,
+    context: Mapping[str, str] | None = None,
+) -> str | None:
     """Compose the SMS for a notification, or None if it no longer applies."""
     name = settings.coparent_display_name
     base = settings.application_base_url
+    context = context or {}
+
+    if kind == NotificationKind.MISSED_CALL:
+        caller = (
+            name
+            if context.get("caller") == "coparent"
+            else (f"An unrecognized {context.get('masked', 'number')}")
+        )
+        return _with_link(
+            f"{caller} called the co-parenting number at {context.get('time', 'an unknown time')} "
+            "and heard that it takes texts only. No voicemail was recorded.",
+            f"{base}/inbox",
+        )
 
     if kind == NotificationKind.UNRECOGNIZED_SENDER:
         sender = mask_phone(message.from_number) if message else "an unknown number"
@@ -148,11 +167,12 @@ def send_notification(
     message_id: uuid.UUID | None,
     dedupe_key: str,
     now: datetime,
+    context: Mapping[str, str] | None = None,
 ) -> None:
     """Send one owner notification. Raises SmsUncertainError so the job retries."""
     settings = services.settings
     message = session.get(Message, message_id) if message_id else None
-    text = build_text(settings, kind, message)
+    text = build_text(settings, kind, message, context)
     if text is None or settings.notify_mode == "off":
         return
 
@@ -249,6 +269,7 @@ def run_notification_job(
         message_id=message_id,
         dedupe_key=dedupe_key or f"notify:{kind.value}:{message_id}",
         now=now,
+        context=payload,
     )
 
 

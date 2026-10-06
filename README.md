@@ -310,9 +310,20 @@ Twilio's console walks through these in order. As of October 2026:
    messaging settings set "A message comes in" to a webhook, method POST,
    address `https://YOUR-ADDRESS/webhooks/twilio/messages`. If the messaging
    service is left on its default, Twilio ignores the number's own webhook.
-7. Delivery callbacks need no setup. Each outgoing text carries its own callback
+7. Point voice calls at the app. In the phone number's voice settings set "A
+   call comes in" to a webhook, method POST, address
+   `https://YOUR-ADDRESS/webhooks/twilio/voice`. The number is text-only: a
+   caller hears a short notice (`VOICE_GREETING`) and the call ends. Nothing is
+   recorded or forwarded. The call is logged and you get a text saying who
+   called and when. Without this step, callers hear Twilio's default demo
+   message.
+8. The campaign form asks for links to a privacy policy and to terms and
+   conditions. The app serves both, publicly, at `/privacy` and `/terms`. Set
+   `SMS_BRAND_NAME` to the registered brand name so the pages show it. Read both
+   pages before giving the links to Twilio; anyone can open them.
+9. Delivery callbacks need no setup. Each outgoing text carries its own callback
    address.
-8. Texting STOP: if your co-parent texts STOP to the number, Twilio blocks your
+10. Texting STOP: if your co-parent texts STOP to the number, Twilio blocks your
    outgoing texts to them until they text START. The app shows this as a failed
    send with an explanation.
 

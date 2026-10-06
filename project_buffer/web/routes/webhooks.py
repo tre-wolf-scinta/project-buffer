@@ -9,7 +9,9 @@ from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
 from project_buffer.clock import utcnow
-from project_buffer.services import delivery, ingestion
+from project_buffer.domain.enums import JobKind, NotificationKind
+from project_buffer.domain.phone import mask_phone, try_normalize_e164
+from project_buffer.services import audit, delivery, ingestion, jobs
 from project_buffer.services.container import Services
 from project_buffer.web.deps import get_db, get_services
 
@@ -77,3 +79,61 @@ def delivery_status(
     delivery.handle_status_callback(db, services, params, utcnow())
     db.commit()
     return _twiml()
+
+
+@router.post("/voice")
+def inbound_call(
+    params: dict[str, str] | None = Depends(signed_params),
+    db: Session = Depends(get_db),
+    services: Services = Depends(get_services),
+) -> Response:
+    """This number is text-only. A caller hears a short notice and the call ends.
+
+    Nothing is recorded and the call is never connected to the owner. The attempt is
+    written to the audit trail and the owner is told by text that a call came in.
+    """
+    if params is None:
+        return _twiml(status_code=403)
+    settings, now = services.settings, utcnow()
+    call_sid = params.get("CallSid", "")
+    caller = try_normalize_e164(params.get("From")) or "unknown"
+
+    dedupe: str | None
+    if caller == settings.coparent_phone_number:
+        who, dedupe = "coparent", f"notify:call:{call_sid or now.isoformat()}"
+    elif caller == settings.owner_phone_number:
+        who, dedupe = "owner", None
+    else:
+        # At most one notice an hour for unknown callers, as with unknown texters.
+        who, dedupe = "unrecognized", f"notify:call-unrecognized:{now:%Y%m%d%H}"
+
+    audit.record(
+        db,
+        actor="twilio",
+        action="call_received",
+        subject_type="call",
+        subject_id=call_sid or None,
+        caller=who,
+        from_number=caller,
+    )
+    if dedupe is not None and (who == "coparent" or settings.notify_unrecognized_senders):
+        local = now.astimezone(settings.timezone)
+        jobs.enqueue(
+            db,
+            JobKind.NOTIFY_OWNER,
+            now=now,
+            max_attempts=settings.job_max_attempts,
+            payload={
+                "kind": NotificationKind.MISSED_CALL.value,
+                "caller": who,
+                "masked": mask_phone(caller),
+                "time": local.strftime("%I:%M %p").lstrip("0") + local.strftime(" on %A"),
+            },
+            dedupe_key=dedupe,
+        )
+    db.commit()
+    logger.info("inbound call answered with text-only notice caller=%s", who)
+    return _twiml(
+        '<?xml version="1.0" encoding="UTF-8"?><Response>'
+        f"<Say>{escape(settings.voice_greeting)}</Say><Hangup/></Response>"
+    )

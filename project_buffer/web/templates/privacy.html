@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Privacy Policy{% endblock %}
+{% block content %}
+<h1>Privacy Policy</h1>
+<p>This policy covers the text messaging number {{ number }}, operated by {{ brand }}. It is a private number used by one person for personal co-parenting communication. It is not a business or marketing service.</p>
+
+<h2>What is collected</h2>
+<ul>
+  <li>The phone numbers that text or call this number.</li>
+  <li>The content of text and picture messages sent to and from this number, with the date and time.</li>
+  <li>Delivery status reported by phone carriers.</li>
+  <li>The date, time and calling number of calls placed to this number. Calls are not answered and are not recorded.</li>
+</ul>
+
+<h2>How it is used</h2>
+<ul>
+  <li>To deliver messages between the two parents.</li>
+  <li>To keep an accurate, unaltered record of the communication.</li>
+  <li>To organize and summarize incoming messages for {{ brand }} using automated software.</li>
+  <li>To notify {{ brand }} when a message or call arrives.</li>
+</ul>
+
+<h2>Who it is shared with</h2>
+<p>We do not sell or share your SMS opt-in data or personal information with third parties for marketing purposes.</p>
+<p>Messages pass through service providers that operate the number and the software behind it: a messaging provider, a hosting provider, and a provider of automated text processing. They handle the information only to provide those services.</p>
+<p>The record may be given to attorneys, a court, or others where the law requires or permits it in a family-law matter.</p>
+
+<h2>How long it is kept</h2>
+<p>Messages are kept as a permanent record and are stored encrypted.</p>
+
+<h2>Your choices</h2>
+<p>Reply STOP to this number at any time to stop receiving texts from it. Reply HELP for help. Message and data rates may apply.</p>
+
+<h2>Contact</h2>
+<p>Questions about this policy can be sent by text message to {{ number }}.</p>
+
+<p><a href="/terms">Terms &amp; Conditions</a></p>
+{% endblock %}

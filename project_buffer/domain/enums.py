@@ -87,6 +87,7 @@ class NotificationKind(StrEnum):
     PROCESSING_FAILED = "processing_failed"
     UNRECOGNIZED_SENDER = "unrecognized_sender"
     DELIVERY_FAILED = "delivery_failed"
+    MISSED_CALL = "missed_call"
 
 
 class NotificationStatus(StrEnum):
