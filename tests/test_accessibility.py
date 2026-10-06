@@ -182,7 +182,7 @@ def populated(
     inbound = db.scalars(
         select(Message).where(Message.direction == Direction.INBOUND).order_by(Message.created_at)
     ).all()
-    first, _second, third, pending, quarantined = inbound
+    first, second, third, pending, quarantined = inbound
 
     llm.drafts.extend(
         [
@@ -220,7 +220,7 @@ def populated(
         "message replied": f"/messages/{third.id}",
         "sent message": f"/messages/{outbound.id}",
         "original warning": f"/messages/{first.id}/original",
-        "reply": f"/messages/{first.id}/reply",
+        "reply": f"/messages/{second.id}/reply",
         "compose": "/compose",
         "draft": f"/drafts/{open_draft.id}",
         "draft review": f"/drafts/{open_draft.id}/review",

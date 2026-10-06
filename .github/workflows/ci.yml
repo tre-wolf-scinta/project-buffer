@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: buffer
+          POSTGRES_PASSWORD: buffer
+          POSTGRES_DB: buffer_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U buffer"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      # Throwaway values for CI only.
+      SECRET_KEY: ci-only-secret-key-000000000000000000000000
+      RAW_MESSAGE_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Lint
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Type check
+        run: uv run mypy project_buffer
+      - name: requirements.txt matches the lock file
+        run: |
+          uv export --no-dev --no-hashes --no-emit-project --format requirements-txt -o /tmp/requirements.txt
+          diff <(grep -v '^#' requirements.txt) <(grep -v '^#' /tmp/requirements.txt)
+      - name: Tests on SQLite
+        run: uv run pytest
+      - name: Migrations from an empty database, with no schema drift
+        env:
+          DATABASE_URL: postgresql://buffer:buffer@localhost:5432/buffer_test
+        run: |
+          uv run alembic upgrade head
+          uv run alembic check
+          uv run alembic downgrade base
+      - name: Tests on PostgreSQL
+        env:
+          TEST_DATABASE_URL: postgresql://buffer:buffer@localhost:5432/buffer_test
+        run: uv run pytest

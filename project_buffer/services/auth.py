@@ -107,6 +107,14 @@ def record_attempt(
 # --- sessions ------------------------------------------------------------------
 
 
+def session_token_hash(settings: Settings, token: str) -> str:
+    """Keyed hash of a session token. SECRET_KEY acts as a pepper, so a database
+    dump alone cannot be used to recognise a stolen cookie, and rotating
+    SECRET_KEY signs every device out."""
+    key = settings.secret_key.get_secret_value().encode()
+    return hmac.new(key, token.encode(), hashlib.sha256).hexdigest()
+
+
 def create_session(
     session: Session, settings: Settings, user: User, now: datetime, *, mfa_verified: bool
 ) -> tuple[UserSession, str]:
@@ -114,7 +122,7 @@ def create_session(
     token = secrets.token_urlsafe(32)
     record = UserSession(
         user_id=user.id,
-        token_hash=_sha256(token),
+        token_hash=session_token_hash(settings, token),
         csrf_token=secrets.token_urlsafe(32),
         mfa_verified_at=now if mfa_verified else None,
         created_at=now,
@@ -131,7 +139,9 @@ def load_session(
 ) -> UserSession | None:
     if not token:
         return None
-    record = session.scalar(select(UserSession).where(UserSession.token_hash == _sha256(token)))
+    record = session.scalar(
+        select(UserSession).where(UserSession.token_hash == session_token_hash(settings, token))
+    )
     if record is None or record.revoked_at is not None or record.expires_at <= now:
         return None
     if now - record.last_seen_at > timedelta(minutes=settings.session_idle_minutes):

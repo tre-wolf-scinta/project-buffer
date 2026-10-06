@@ -6,6 +6,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, Form, Request, Response
 from fastapi.responses import RedirectResponse
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from project_buffer.clock import utcnow
@@ -67,6 +68,12 @@ def reply_form(
     services: Services = Depends(get_services),
 ) -> Response:
     message = get_message(message_id, db, inbound_only=True)
+    existing = db.scalar(
+        select(Draft).where(Draft.in_reply_to_id == message.id, Draft.status == DraftStatus.READY)
+    )
+    if existing is not None:
+        # One open reply per message: continue it rather than starting a second.
+        return _redirect(f"/drafts/{existing.id}")
     return render(
         request,
         db,

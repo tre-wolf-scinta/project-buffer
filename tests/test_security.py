@@ -209,6 +209,38 @@ def test_new_account_is_forced_through_mfa_setup(
     assert client.get("/inbox").status_code == 200
 
 
+def test_notification_link_survives_sign_in(client: TestClient, owner: User) -> None:
+    """Opening a deep link while signed out returns you to it after both sign-in steps."""
+    target = f"/messages/{uuid.uuid4()}"
+    bounced = client.get(target)
+    assert bounced.headers["location"] == f"/login?next={target}"
+    page = client.get(bounced.headers["location"])
+    response = client.post(
+        "/login",
+        data={
+            "username": OWNER_USERNAME,
+            "password": OWNER_PASSWORD,
+            "csrf_token": csrf_from(page),
+            "next": BeautifulSoup(page.text, "html.parser").find("input", {"name": "next"})[
+                "value"
+            ],
+        },
+    )
+    assert response.headers["location"] == f"/login/verify?next={target}"
+    page = client.get(response.headers["location"])
+    response = client.post(
+        "/login/verify",
+        data={
+            "code": pyotp.TOTP(TOTP_SECRET).now(),
+            "csrf_token": csrf_from(page),
+            "next": BeautifulSoup(page.text, "html.parser").find("input", {"name": "next"})[
+                "value"
+            ],
+        },
+    )
+    assert response.headers["location"] == target
+
+
 def test_sign_out_ends_the_session(auth_client: TestClient) -> None:
     response = auth_client.post("/logout", data={"csrf_token": auth_client.csrf})
     assert response.status_code == 303
@@ -339,6 +371,7 @@ def test_original_text_appears_nowhere_by_default(
     sms: FakeSms,
 ) -> None:
     message = _processed_message(auth_client, db, services, llm)
+    reply_form = auth_client.get(f"/messages/{message.id}/reply")
     llm.drafts.append(DraftReplyResult(message_text="Yes, I can.", notes_for_owner=[]))
     auth_client.post(
         f"/messages/{message.id}/reply",
@@ -354,7 +387,7 @@ def test_original_text_appears_nowhere_by_default(
         auth_client.get("/timeline"),
         auth_client.get(f"/messages/{message.id}"),
         auth_client.get(f"/messages/{message.id}/original"),  # the warning page only
-        auth_client.get(f"/messages/{message.id}/reply"),
+        reply_form,
         auth_client.get(f"/drafts/{draft.id}"),
         auth_client.get(f"/drafts/{draft.id}/review"),
         auth_client.get("/drafts"),

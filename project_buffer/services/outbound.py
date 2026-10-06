@@ -167,6 +167,7 @@ def approve_and_send(
     _record_accepted(session, message, draft, sent.provider_message_id, sent.status, now)
     if draft.in_reply_to is not None and draft.in_reply_to.handled_at is None:
         draft.in_reply_to.handled_at = now
+        draft.in_reply_to.read_at = draft.in_reply_to.read_at or now
         draft.in_reply_to.requires_response = False
     session.commit()
     logger.info("outbound message accepted id=%s", message_id)

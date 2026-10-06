@@ -101,6 +101,16 @@ def test_draft_creation_uses_sanitized_context_only(
     assert sms.sent_to(COPARENT) == []
 
 
+def test_reply_continues_an_existing_draft_instead_of_starting_another(
+    auth_client: TestClient, db: Session, services: Services, llm: ScriptedLLM
+) -> None:
+    message = _inbound(auth_client, db, services, llm)
+    draft = _draft(auth_client, db, llm, message)
+    response = auth_client.get(f"/messages/{message.id}/reply")
+    assert response.status_code == 303
+    assert response.headers["location"] == f"/drafts/{draft.id}"
+
+
 def test_ai_failure_still_lets_the_owner_write_by_hand(
     auth_client: TestClient, db: Session, services: Services, llm: ScriptedLLM
 ) -> None:
