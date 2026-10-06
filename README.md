@@ -289,16 +289,30 @@ takes daily database backups on paid plans; confirm that in the dashboard.
 
 ## 7. Connecting Twilio
 
-1. Buy a phone number with SMS and MMS capability.
-2. In the number's messaging settings, set "A message comes in" to a webhook,
-   method POST, address `https://YOUR-ADDRESS/webhooks/twilio/messages`.
-3. Delivery callbacks need no setup. Each outgoing text carries its own callback
+Twilio's console walks through these in order. As of October 2026:
+
+1. Create a primary compliance profile. Choose "Individual Profile". It asks
+   for your name as on your ID, email, phone and home address, and for consent
+   to identity verification by Twilio's vendor. Twilio will not sell a number
+   without it.
+2. Buy a local phone number with SMS and MMS capability (about $1.15 a month).
+3. Choose "Messaging" for the number and create a new messaging service. The
+   number is assigned to it.
+4. Register an A2P 10DLC brand. An individual profile becomes a Sole Proprietor
+   brand ($4.50 one-time). Twilio texts a one-time code to your mobile; reply
+   within 24 hours or the brand is not approved.
+5. Once the brand is approved, register the A2P campaign: what the number is
+   for, sample messages, and how recipients agreed to be texted ($15 vetting
+   fee plus a small monthly fee). Describe the real use. Approval can take
+   days. Until it is approved, sends can fail with error 30034.
+6. Point incoming messages at the app. In the messaging service's Integration
+   settings choose "Defer to sender's webhook", then in the phone number's
+   messaging settings set "A message comes in" to a webhook, method POST,
+   address `https://YOUR-ADDRESS/webhooks/twilio/messages`. If the messaging
+   service is left on its default, Twilio ignores the number's own webhook.
+7. Delivery callbacks need no setup. Each outgoing text carries its own callback
    address.
-4. United States numbers: carriers block unregistered application traffic on
-   ordinary ten-digit numbers. Register the number for A2P 10DLC (Twilio offers
-   a sole-proprietor option) or use a verified toll-free number. Do this early;
-   approval can take days. Until then, sends can fail with error 30034.
-5. Texting STOP: if your co-parent texts STOP to the number, Twilio blocks your
+8. Texting STOP: if your co-parent texts STOP to the number, Twilio blocks your
    outgoing texts to them until they text START. The app shows this as a failed
    send with an explanation.
 
