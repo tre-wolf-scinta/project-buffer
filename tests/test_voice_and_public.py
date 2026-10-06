@@ -8,7 +8,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from project_buffer.infrastructure.db.models import AuditEvent, Message
+from project_buffer.infrastructure.db.models import AuditEvent, BetaSignup, Message
+from project_buffer.services import beta
 from project_buffer.services.container import Services
 from project_buffer.worker import drain
 from tests.conftest import (
@@ -17,7 +18,9 @@ from tests.conftest import (
     STRANGER,
     TWILIO_NUMBER,
     FakeSms,
+    csrf_from,
     make_settings,
+    soup_of,
     twilio_signature,
     visible_text,
 )
@@ -131,8 +134,128 @@ def test_policy_pages_are_public_and_meet_carrier_requirements(
     assert audit(terms.text) == []
 
 
+def _beta_post(client: TestClient, **overrides: str) -> Any:
+    page = client.get("/beta")
+    data = {
+        "csrf_token": csrf_from(page),
+        "name": "Pat Example",
+        "email": "pat@example.com",
+        "phone": "(202) 555-0143",
+        "sms_consent": "yes",
+    }
+    data.update(overrides)
+    return client.post("/beta", data=data)
+
+
+def test_beta_page_shows_real_consent_wording_and_passes_audit(
+    client: TestClient, services: Services
+) -> None:
+    services.settings = make_settings(
+        database_url=services.settings.database_url, sms_brand_name="Alex Example"
+    )
+    page = client.get("/beta")
+    assert page.status_code == 200
+    assert audit(page.text) == []
+    soup = soup_of(page)
+    checkbox = soup.find("input", {"name": "sms_consent"})
+    # Consent is never pre-ticked.
+    assert not checkbox.has_attr("checked")
+    label = soup.find("label", {"for": "sms_consent"}).get_text()
+    assert label == beta.consent_text(services.settings)
+    for required in (
+        "Alex Example",
+        "Message frequency varies.",
+        "Message and data rates may apply.",
+        "Reply STOP to opt out or HELP for help.",
+    ):
+        assert required in label
+    text = visible_text(page)
+    assert "private beta" in text and "does not guarantee a place" in text
+    assert soup.find("a", href="/privacy") and soup.find("a", href="/terms")
+
+
+def test_beta_request_is_stored_encrypted_with_consent_and_sends_nothing(
+    client: TestClient, db: Session, services: Services, sms: FakeSms
+) -> None:
+    response = _beta_post(client)
+    assert response.status_code == 200
+    assert "Request received" in response.text
+    assert audit(response.text) == []
+
+    row = db.scalars(select(BetaSignup)).one()
+    assert row.consent_text == beta.consent_text(services.settings)
+    assert row.consent_version == beta.CONSENT_VERSION and row.consented_at is not None
+    for secret in (b"Pat Example", b"pat@example.com", b"2025550143"):
+        assert secret not in row.details_ciphertext
+    ((_, details),) = beta.list_signups(db, services)
+    assert (details.name, details.email, details.phone) == (
+        "Pat Example",
+        "pat@example.com",
+        "+12025550143",
+    )
+    # Asking for access never triggers a text, to anyone.
+    drain(services)
+    assert sms.sent == []
+
+
+def test_beta_request_requires_consent_and_valid_details(client: TestClient, db: Session) -> None:
+    cases = {
+        "Check the box": {"sms_consent": ""},
+        "Enter your name": {"name": "  "},
+        "valid email": {"email": "not-an-email"},
+        "mobile number with area code": {"phone": "12345"},
+    }
+    for message, overrides in cases.items():
+        response = _beta_post(client, **overrides)
+        assert response.status_code == 400, message
+        assert message in visible_text(response)
+        assert audit(response.text) == []
+    assert db.scalars(select(BetaSignup)).all() == []
+
+
+def test_beta_request_is_deduplicated_throttled_and_csrf_protected(
+    client: TestClient, db: Session
+) -> None:
+    assert _beta_post(client).status_code == 200
+    assert _beta_post(client).status_code == 200  # same number: same answer, one row
+    assert len(db.scalars(select(BetaSignup)).all()) == 1
+
+    # Automated submissions that fill the hidden field are accepted silently and dropped.
+    assert _beta_post(client, phone="2025550144", website="http://spam.example").status_code == 200
+    assert len(db.scalars(select(BetaSignup)).all()) == 1
+
+    for index in range(beta.MAX_REQUESTS_PER_IP_PER_HOUR - 1):
+        assert _beta_post(client, phone=f"202555015{index}").status_code == 200
+    assert _beta_post(client, phone="2025550160").status_code == 429
+
+    forged = client.post(
+        "/beta",
+        data={
+            "csrf_token": "guess",
+            "name": "x",
+            "email": "x@example.com",
+            "phone": "2025550161",
+            "sms_consent": "yes",
+        },
+        cookies={},
+    )
+    assert forged.status_code in (403, 429)
+
+
+def test_beta_requests_list_is_owner_only(
+    client: TestClient, auth_client: TestClient, services: Services
+) -> None:
+    _beta_post(auth_client)
+    page = auth_client.get("/account/beta-requests")
+    assert page.status_code == 200
+    assert "Pat Example" in page.text and "pat@example.com" in page.text
+    assert audit(page.text) == []
+    anonymous = TestClient(auth_client.app, base_url="https://buffer.test", follow_redirects=False)
+    assert anonymous.get("/account/beta-requests").status_code == 303
+
+
 def test_policy_pages_reveal_nothing_private(client: TestClient) -> None:
-    for path in ("/privacy", "/terms"):
+    for path in ("/privacy", "/terms", "/beta"):
         page = client.get(path).text
         # No names from configuration other than the brand, no owner or co-parent numbers.
         for private in ("Jordan", "Riley", "Sam", COPARENT, OWNER):

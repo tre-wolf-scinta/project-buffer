@@ -17,6 +17,7 @@ from project_buffer.services import auth
 from project_buffer.services.container import Services
 
 PRELOGIN_CSRF_COOKIE = "pb_prelogin"
+PUBLIC_FORM_CSRF_COOKIE = "pb_public_form"
 
 
 def get_services(request: Request) -> Services:
@@ -126,16 +127,27 @@ async def csrf_protect(
         raise HTTPException(status_code=403, detail="This form has expired. Go back and retry.")
 
 
+async def _double_submit(request: Request, services: Services, cookie_name: str) -> None:
+    _check_origin(request, services)
+    form = await request.form()
+    submitted = form.get("csrf_token")
+    cookie = request.cookies.get(cookie_name)
+    if not cookie or not isinstance(submitted, str) or not hmac.compare_digest(submitted, cookie):
+        raise HTTPException(status_code=403, detail="This form has expired. Reload and retry.")
+
+
 async def prelogin_csrf_protect(
     request: Request, services: Services = Depends(get_services)
 ) -> None:
     """Double-submit CSRF check for the login form, which has no session yet."""
-    _check_origin(request, services)
-    form = await request.form()
-    submitted = form.get("csrf_token")
-    cookie = request.cookies.get(PRELOGIN_CSRF_COOKIE)
-    if not cookie or not isinstance(submitted, str) or not hmac.compare_digest(submitted, cookie):
-        raise HTTPException(status_code=403, detail="This form has expired. Reload and retry.")
+    await _double_submit(request, services, PRELOGIN_CSRF_COOKIE)
+
+
+async def public_form_csrf_protect(
+    request: Request, services: Services = Depends(get_services)
+) -> None:
+    """Double-submit CSRF check for public forms such as the beta request."""
+    await _double_submit(request, services, PUBLIC_FORM_CSRF_COOKIE)
 
 
 def get_message(message_id: uuid.UUID, db: Session, *, inbound_only: bool = False) -> Message:

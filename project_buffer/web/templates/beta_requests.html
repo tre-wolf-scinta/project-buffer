@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% set section = "account" %}
+{% block title %}Beta access requests{% endblock %}
+{% block content %}
+<h1>Beta access requests</h1>
+<p>People who asked for access through the public form, newest first. Nothing has been sent to them.</p>
+{% if requests %}
+<ol class="plain-list">
+  {% for row, details in requests %}
+  <li class="card">
+    <h2>{{ details.name }}</h2>
+    <dl class="facts">
+      <dt>Email</dt>
+      <dd>{{ details.email }}</dd>
+      <dt>Mobile</dt>
+      <dd>{{ details.phone }}</dd>
+      <dt>Agreed to texts</dt>
+      <dd>{{ row.consented_at.strftime("%Y-%m-%d %H:%M UTC") }}, wording version {{ row.consent_version }}</dd>
+    </dl>
+  </li>
+  {% endfor %}
+</ol>
+{% else %}
+<p>No one has asked for access yet.</p>
+{% endif %}
+<p><a href="/account">Back to account</a></p>
+{% endblock %}

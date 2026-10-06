@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "_macros.html" import error_box %}
+{% block title %}{{ "Request received" if done else "Request beta access" }}{% endblock %}
+{% block content %}
+{% if done %}
+<h1 id="done" tabindex="-1" data-focus-on-load>Request received</h1>
+<p>Thank you. Buffer is in private beta and places are limited, so asking does not guarantee one.</p>
+<p>If a place opens, we will email you. You will not receive any text messages unless you are accepted into the beta.</p>
+<p><a href="/privacy">Privacy Policy</a>. <a href="/terms">Terms &amp; Conditions</a>.</p>
+{% else %}
+<h1>Request beta access</h1>
+<p>Buffer is a tool for parents who share children with someone whose messages are hard to read.</p>
+<ul>
+  <li>Your co-parent texts an ordinary phone number.</li>
+  <li>Every message is kept exactly as it was sent.</li>
+  <li>You read a calm summary of what matters: schedules, requests and deadlines.</li>
+  <li>You reply in your own words and approve every message before it is sent.</li>
+</ul>
+<p><strong>Buffer is in private beta, operated by {{ brand }}.</strong> Places are limited and by invitation. Asking for access is free and does not guarantee a place.</p>
+
+{{ error_box(error) }}
+
+<form method="post" action="/beta">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label for="name">Your name</label>
+  <input type="text" id="name" name="name" value="{{ values.name }}" required maxlength="80" autocomplete="name">
+
+  <label for="email">Email address</label>
+  <input type="text" id="email" name="email" value="{{ values.email }}" required inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false">
+
+  <label for="phone">Mobile phone number</label>
+  <p id="phone-help" class="hint">United States numbers only, with area code.</p>
+  <input type="text" id="phone" name="phone" value="{{ values.phone }}" required inputmode="tel" autocomplete="tel" aria-describedby="phone-help">
+
+  {# Hidden from people and from assistive technology. Automated submitters fill it in. #}
+  <div hidden>
+    <label for="website">Leave this field empty</label>
+    <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+  </div>
+
+  <div class="checkbox">
+    <input type="checkbox" id="sms_consent" name="sms_consent" value="yes" required>
+    <label for="sms_consent">{{ consent_text }}</label>
+  </div>
+  <p class="hint">See the <a href="/privacy">Privacy Policy</a> and <a href="/terms">Terms &amp; Conditions</a>.</p>
+
+  <button type="submit">Request access</button>
+</form>
+
+<section aria-labelledby="next-heading">
+  <h2 id="next-heading">What happens next</h2>
+  <p>If a place opens, we will email you. You will not receive any text messages unless you are accepted into the beta.</p>
+</section>
+{% endif %}
+{% endblock %}

@@ -374,6 +374,27 @@ class AuditEvent(Base):
     detail: Mapped[dict[str, Any]] = mapped_column(JsonType, default=dict)
 
 
+class BetaSignup(Base):
+    """A request for beta access, with the exact SMS consent wording that was agreed to."""
+
+    __tablename__ = "beta_signups"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
+    # Name, email and mobile number as JSON, encrypted.
+    details_ciphertext: Mapped[bytes] = mapped_column(LargeBinary)
+    # Keyed digest of the mobile number, so a repeat request is recognised without
+    # the number being readable in the database.
+    phone_mac: Mapped[str] = mapped_column(String(64), unique=True)
+    consent_text: Mapped[str] = mapped_column(Text)
+    consent_version: Mapped[str] = mapped_column(String(16))
+    consented_at: Mapped[datetime] = mapped_column(UtcDateTime)
+    ip: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utcnow, index=True)
+
+    def details_aad(self) -> bytes:
+        return f"beta-signup:{self.id}".encode()
+
+
 class WorkerHeartbeat(Base):
     __tablename__ = "worker_heartbeats"
 
