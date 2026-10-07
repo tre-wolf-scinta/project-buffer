@@ -28,3 +28,6 @@ Thumbs.db
 
 # Local tool configuration
 .claude/
+
+# Personal deployment answers (names, phone numbers). Never commit.
+deploy.local.json

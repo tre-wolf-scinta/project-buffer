@@ -32,7 +32,7 @@ envVarGroups:
       - key: LLM_PROVIDER
         value: anthropic
       - key: OWNER_TIMEZONE
-        value: America/New_York
+        value: America/Chicago
       - key: NOTIFY_MODE
         value: summary
       - key: LOG_LEVEL
