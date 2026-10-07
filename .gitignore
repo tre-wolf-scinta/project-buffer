@@ -31,3 +31,4 @@ Thumbs.db
 
 # Personal deployment answers (names, phone numbers). Never commit.
 deploy.local.json
+scripts/last-run.log

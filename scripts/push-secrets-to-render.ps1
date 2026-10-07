@@ -40,16 +40,46 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+# Text piped to other programs must not start with a byte-order mark.
+$OutputEncoding = New-Object System.Text.UTF8Encoding $false
 $RenderApi = "https://api.render.com/v1"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $LocalConfigPath = Join-Path $RepoRoot "deploy.local.json"
+# A plain record of what happened, so a failure can be diagnosed afterwards.
+# Only the fixed messages below go into it. Secret values never do.
+$LogPath = Join-Path $PSScriptRoot "last-run.log"
+Set-Content -Path $LogPath -Value ("Run started " + (Get-Date -Format "yyyy-MM-dd HH:mm:ss")) -Encoding utf8
 
-function Say([string]$Text) { Write-Host $Text }
+function Say([string]$Text) {
+    Write-Host $Text
+    Add-Content -Path $LogPath -Value $Text -Encoding utf8
+}
 
 function Fail([string]$Text) {
     Write-Host ""
     Write-Host "STOPPED: $Text"
+    Add-Content -Path $LogPath -Value "STOPPED: $Text" -Encoding utf8
     exit 1
+}
+
+trap {
+    # Any unexpected error lands here. Record where it happened, then stop.
+    $where = "line " + $_.InvocationInfo.ScriptLineNumber
+    $what = $_.Exception.GetType().Name + ": " + $_.Exception.Message
+    Write-Host ""
+    Write-Host "STOPPED by an unexpected error at $where."
+    Write-Host $what
+    Add-Content -Path $LogPath -Value "UNEXPECTED ERROR at $where. $what" -Encoding utf8
+    exit 1
+}
+
+function ConvertTo-E164([string]$Value) {
+    # Accepts 3255550100, 13255550100, (325) 555-0100 or +13255550100.
+    $digits = ($Value -replace "\D", "")
+    if ($digits.Length -eq 10) { return "+1$digits" }
+    if ($digits.Length -eq 11 -and $digits.StartsWith("1")) { return "+$digits" }
+    if ($Value.Trim().StartsWith("+") -and $digits.Length -ge 8) { return "+$digits" }
+    Fail "'$Value' is not a phone number I can use. Give ten digits with the area code."
 }
 
 # --- Bitwarden ---------------------------------------------------------------
@@ -59,18 +89,23 @@ function Open-Vault {
         Fail "The Bitwarden command-line tool (bw) is not on the PATH. Close and reopen the terminal, then run this again."
     }
     $status = (bw status | ConvertFrom-Json).status
+    Say "Bitwarden status at start: $status."
     if ($status -eq "unauthenticated") {
         Say "Bitwarden is not signed in on this computer. Bitwarden will now ask for your email, master password and two-step code."
-        bw login
-        if ($LASTEXITCODE -ne 0) { Fail "Bitwarden sign-in did not complete." }
-        $status = (bw status | ConvertFrom-Json).status
-    }
-    if ($status -ne "unlocked") {
+        Say "If it asks for an 'API key client_secret', stop and tell Claude. That is a different sign-in method."
+        # --raw makes Bitwarden hand back the session directly, so the master
+        # password is asked for once instead of twice.
+        $session = bw login --raw
+        if ($LASTEXITCODE -ne 0 -or -not $session) { Fail "Bitwarden sign-in did not complete (exit code $LASTEXITCODE)." }
+        $env:BW_SESSION = ($session | Select-Object -Last 1)
+    } elseif ($status -ne "unlocked") {
         Say "Bitwarden will now ask for your master password to unlock the vault."
         $session = bw unlock --raw
-        if ($LASTEXITCODE -ne 0 -or -not $session) { Fail "The vault was not unlocked." }
-        $env:BW_SESSION = $session
+        if ($LASTEXITCODE -ne 0 -or -not $session) { Fail "The vault was not unlocked (exit code $LASTEXITCODE)." }
+        $env:BW_SESSION = ($session | Select-Object -Last 1)
     }
+    $status = (bw status | ConvertFrom-Json).status
+    if ($status -ne "unlocked") { Fail "Bitwarden reports '$status' after sign-in, not 'unlocked'." }
     bw sync | Out-Null
     Say "Bitwarden vault is unlocked."
 }
@@ -108,9 +143,15 @@ function Save-VaultSecret([string]$Name, [string]$Secret, [string]$Note) {
     $template.name = $Name
     $template.notes = $Note
     $template.login = [pscustomobject]@{ username = ""; password = $Secret; uris = @(); totp = $null }
-    $encoded = $template | ConvertTo-Json -Depth 10 -Compress | bw encode
-    $encoded | bw create item | Out-Null
-    if ($LASTEXITCODE -ne 0) { Fail "Could not save '$Name' to Bitwarden." }
+    # Encode here and pass the result as an argument. Piping text into another
+    # program from Windows PowerShell can put a byte-order mark in front of it,
+    # which Bitwarden cannot parse.
+    $json = $template | ConvertTo-Json -Depth 10 -Compress
+    $encoded = [Convert]::ToBase64String((New-Object System.Text.UTF8Encoding $false).GetBytes($json))
+    bw create item $encoded | Out-Null
+    $code = $LASTEXITCODE
+    $json = $null; $encoded = $null
+    if ($code -ne 0) { Fail "Could not save '$Name' to Bitwarden (exit code $code)." }
     Say "Saved to Bitwarden as '$Name'."
 }
 
@@ -235,9 +276,18 @@ if ($web.Count -eq 1 -and $web[0].serviceDetails -and $web[0].serviceDetails.url
 }
 $values.APPLICATION_BASE_URL = Get-Setting $config "APPLICATION_BASE_URL" "Public address of the web service, starting with https" $defaultUrl
 $values.TWILIO_ACCOUNT_SID = Get-Setting $config "TWILIO_ACCOUNT_SID" "Twilio Account SID, starting with AC"
-$values.TWILIO_PHONE_NUMBER = Get-Setting $config "TWILIO_PHONE_NUMBER" "The Twilio number, like +13255550100"
-$values.OWNER_PHONE_NUMBER = Get-Setting $config "OWNER_PHONE_NUMBER" "Your own mobile number, like +13255550100"
-$values.COPARENT_PHONE_NUMBER = Get-Setting $config "COPARENT_PHONE_NUMBER" "Your co-parent's mobile number, like +13255550100"
+$values.TWILIO_PHONE_NUMBER = Get-Setting $config "TWILIO_PHONE_NUMBER" "The Twilio number, ten digits with area code"
+$values.OWNER_PHONE_NUMBER = Get-Setting $config "OWNER_PHONE_NUMBER" "Your own mobile number, ten digits with area code"
+$values.COPARENT_PHONE_NUMBER = Get-Setting $config "COPARENT_PHONE_NUMBER" "Your co-parent's mobile number, ten digits with area code"
+# The app needs numbers as + then country code then number. Fix the format here
+# so it does not matter how they were typed.
+foreach ($phoneKey in @("TWILIO_PHONE_NUMBER", "OWNER_PHONE_NUMBER", "COPARENT_PHONE_NUMBER")) {
+    $values[$phoneKey] = ConvertTo-E164 $values[$phoneKey]
+    $config | Add-Member -NotePropertyName $phoneKey -NotePropertyValue $values[$phoneKey] -Force
+}
+if (@($values.TWILIO_PHONE_NUMBER, $values.OWNER_PHONE_NUMBER, $values.COPARENT_PHONE_NUMBER | Select-Object -Unique).Count -ne 3) {
+    Fail "The Twilio number, your number and your co-parent's number must be three different numbers."
+}
 $values.OWNER_DISPLAY_NAME = Get-Setting $config "OWNER_DISPLAY_NAME" "Your first name, as summaries should refer to you"
 $values.COPARENT_DISPLAY_NAME = Get-Setting $config "COPARENT_DISPLAY_NAME" "Your co-parent's first name"
 $values.CHILDREN_NAMES = Get-Setting $config "CHILDREN_NAMES" "Children's first names, separated by commas"
@@ -248,6 +298,7 @@ $values.LLM_PROVIDER = Get-Setting $config "LLM_PROVIDER" "AI provider, anthropi
 $config | ConvertTo-Json | Set-Content -Path $LocalConfigPath -Encoding utf8
 Say "Saved the non-secret answers to deploy.local.json so you are not asked again."
 
+Say "Looking for the AI provider key in Bitwarden."
 $aiKey = Get-VaultSecret $AiKeySearch
 if (-not $aiKey) { Fail "No Bitwarden item matches '$AiKeySearch'. Run again with -AiKeySearch and part of the item's name." }
 # Guard against picking up an account password from a sign-in item with a similar name.
@@ -259,6 +310,7 @@ if (-not $aiKey.StartsWith($expectedPrefix)) {
 if ($values.LLM_PROVIDER -eq "openai") { $values.OPENAI_API_KEY = $aiKey } else { $values.ANTHROPIC_API_KEY = $aiKey }
 Say "Read the AI provider key from Bitwarden."
 
+Say "Looking for the Twilio auth token in Bitwarden."
 $twilioToken = Get-VaultSecret "Twilio Auth Token"
 if (-not $twilioToken) {
     Say ""
@@ -272,6 +324,7 @@ if (-not $twilioToken) {
 }
 $values.TWILIO_AUTH_TOKEN = $twilioToken
 
+Say "Looking for the message encryption key in Bitwarden."
 $encryptionKey = Get-VaultSecret "Buffer Message Encryption Key"
 if (-not $encryptionKey) {
     $encryptionKey = New-EncryptionKey
