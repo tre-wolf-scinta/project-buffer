@@ -77,7 +77,10 @@ function Open-Vault {
 
 function Get-VaultSecret([string]$Search) {
     # Returns the secret from the single item matching $Search, or $null if none.
-    $items = @(bw list items --search $Search | ConvertFrom-Json)
+    # Windows PowerShell 5.1 passes a JSON array down the pipeline as one object,
+    # so it is assigned first and then enumerated.
+    $parsed = bw list items --search $Search | ConvertFrom-Json
+    $items = @($parsed | ForEach-Object { $_ })
     if ($items.Count -eq 0) { return $null }
     $item = $items[0]
     if ($items.Count -gt 1) {
