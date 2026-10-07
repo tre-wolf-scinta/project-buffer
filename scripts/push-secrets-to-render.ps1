@@ -139,10 +139,13 @@ function Get-VaultSecret([string]$Search) {
 
 function Save-VaultSecret([string]$Name, [string]$Secret, [string]$Note) {
     $template = bw get template item | ConvertFrom-Json
-    $template.type = 1
-    $template.name = $Name
-    $template.notes = $Note
-    $template.login = [pscustomobject]@{ username = ""; password = $Secret; uris = @(); totp = $null }
+    $login = [pscustomobject]@{ uris = @(); username = ""; password = $Secret; totp = $null }
+    # Add-Member -Force sets each field whether or not this version of Bitwarden's
+    # template already has it. (Its template has no "login" field to assign to.)
+    $template | Add-Member -NotePropertyName type -NotePropertyValue 1 -Force
+    $template | Add-Member -NotePropertyName name -NotePropertyValue $Name -Force
+    $template | Add-Member -NotePropertyName notes -NotePropertyValue $Note -Force
+    $template | Add-Member -NotePropertyName login -NotePropertyValue $login -Force
     # Encode here and pass the result as an argument. Piping text into another
     # program from Windows PowerShell can put a byte-order mark in front of it,
     # which Bitwarden cannot parse.
@@ -310,6 +313,27 @@ if (-not $aiKey.StartsWith($expectedPrefix)) {
 if ($values.LLM_PROVIDER -eq "openai") { $values.OPENAI_API_KEY = $aiKey } else { $values.ANTHROPIC_API_KEY = $aiKey }
 Say "Read the AI provider key from Bitwarden."
 
+# The encryption key comes before the Twilio token, so that if saving to
+# Bitwarden does not work, it is found out before you are asked to copy anything.
+Say "Looking for the message encryption key in Bitwarden."
+$encryptionKey = Get-VaultSecret "Buffer Message Encryption Key"
+if (-not $encryptionKey) {
+    $encryptionKey = New-EncryptionKey
+    Save-VaultSecret "Buffer Message Encryption Key" $encryptionKey "Project Buffer RAW_MESSAGE_ENCRYPTION_KEY. If this is lost, stored original messages can never be read. Do not delete."
+    # This key is the only way to read stored originals. Confirm the saved copy
+    # reads back exactly before it is used anywhere.
+    if ((Get-VaultSecret "Buffer Message Encryption Key") -cne $encryptionKey) {
+        Fail "The encryption key did not read back correctly from Bitwarden. Nothing was sent to Render."
+    }
+    Say "Generated a new message encryption key and confirmed the Bitwarden copy."
+} else {
+    Say "Read the existing message encryption key from Bitwarden."
+}
+if ($encryptionKey -notmatch "^[A-Za-z0-9_-]{43}=$") {
+    Fail "The message encryption key in Bitwarden is not in the expected format. Nothing was sent to Render."
+}
+$values.RAW_MESSAGE_ENCRYPTION_KEY = $encryptionKey
+
 Say "Looking for the Twilio auth token in Bitwarden."
 $twilioToken = Get-VaultSecret "Twilio Auth Token"
 if (-not $twilioToken) {
@@ -323,17 +347,6 @@ if (-not $twilioToken) {
     Save-VaultSecret "Twilio Auth Token" $twilioToken "Project Buffer. Account auth token; used to verify Twilio webhooks."
 }
 $values.TWILIO_AUTH_TOKEN = $twilioToken
-
-Say "Looking for the message encryption key in Bitwarden."
-$encryptionKey = Get-VaultSecret "Buffer Message Encryption Key"
-if (-not $encryptionKey) {
-    $encryptionKey = New-EncryptionKey
-    Save-VaultSecret "Buffer Message Encryption Key" $encryptionKey "Project Buffer RAW_MESSAGE_ENCRYPTION_KEY. If this is lost, stored original messages can never be read. Do not delete."
-    Say "Generated a new message encryption key."
-} else {
-    Say "Read the existing message encryption key from Bitwarden."
-}
-$values.RAW_MESSAGE_ENCRYPTION_KEY = $encryptionKey
 
 Say ""
 foreach ($key in $values.Keys) {
