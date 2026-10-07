@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     # Name shown on the public Privacy Policy and Terms pages. Carriers require it to
     # match the registered A2P brand name.
     sms_brand_name: str = ""
+    # Opens the one-time /setup page for creating the owner account in a browser.
+    # It only works while no account exists. Turn it off again afterwards.
+    allow_owner_setup: bool = False
     # What a caller hears. This number is text-only; calls are never connected.
     voice_greeting: str = (
         "This number accepts text messages only. Calls are not answered and voicemail is "

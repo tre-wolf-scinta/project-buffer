@@ -30,6 +30,7 @@ _DUMMY_HASH = _hasher.hash(secrets.token_urlsafe(16))
 MIN_PASSWORD_LENGTH = 12
 RECOVERY_CODE_COUNT = 10
 ISSUER = "Project Buffer"
+_OWNER_CREATION_LOCK = 7_203_151
 
 
 class AuthError(Exception):
@@ -49,14 +50,26 @@ def hash_password(password: str) -> str:
     return _hasher.hash(password)
 
 
-def create_owner(session: Session, username: str, password: str) -> User:
+def create_owner(
+    session: Session, username: str, password: str, *, actor: str = "cli", ip: str | None = None
+) -> User:
+    if session.get_bind().dialect.name == "postgresql":
+        # Two creations racing each other must not both pass the check below.
+        # The lock is released when this transaction ends.
+        session.execute(select(func.pg_advisory_xact_lock(_OWNER_CREATION_LOCK)))
     if session.scalar(select(func.count()).select_from(User)):
         raise AuthError("An owner account already exists.")
     user = User(username=username.strip().lower(), password_hash=hash_password(password))
     session.add(user)
     session.flush()
+    detail = {"ip": ip[:64]} if ip else {}
     audit.record(
-        session, actor="cli", action="owner_created", subject_type="user", subject_id=user.id
+        session,
+        actor=actor,
+        action="owner_created",
+        subject_type="user",
+        subject_id=user.id,
+        **detail,
     )
     return user
 

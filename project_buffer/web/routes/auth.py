@@ -6,11 +6,13 @@ import secrets
 
 from fastapi import APIRouter, Depends, Form, Request, Response
 from fastapi.responses import RedirectResponse
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from project_buffer.clock import utcnow
 from project_buffer.config import Settings
 from project_buffer.domain.enums import AuthAttemptKind
+from project_buffer.infrastructure.db.models import User
 from project_buffer.services import audit, auth
 from project_buffer.services.container import Services
 from project_buffer.web.deps import (
@@ -84,10 +86,16 @@ def login_form(
     request: Request,
     next: str | None = None,
     context: AuthContext | None = Depends(optional_auth),
+    db: Session = Depends(get_db),
     services: Services = Depends(get_services),
 ) -> Response:
     if context is not None:
         return RedirectResponse("/inbox", status_code=303)
+    if services.settings.allow_owner_setup and not db.scalar(
+        select(func.count()).select_from(User)
+    ):
+        # No account yet and first-time setup is switched on.
+        return RedirectResponse("/setup", status_code=303)
     return _login_page(request, services, next_url=safe_next(next))
 
 

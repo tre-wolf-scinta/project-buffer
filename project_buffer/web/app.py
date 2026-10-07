@@ -33,6 +33,7 @@ from project_buffer.web.routes import (
     inbox,
     messages,
     public,
+    setup,
     webhooks,
 )
 from project_buffer.web.security import SecurityHeadersMiddleware
@@ -101,7 +102,7 @@ def create_app(services: Services | None = None) -> FastAPI:
     app.add_middleware(SecurityHeadersMiddleware, hsts=settings.cookie_secure)
     app.mount("/static", StaticFiles(directory=str(WEB_DIR / "static")), name="static")
 
-    for module in (health, webhooks, public, auth, account, inbox, messages, drafts, export):
+    for module in (health, webhooks, public, setup, auth, account, inbox, messages, drafts, export):
         app.include_router(module.router)
 
     @app.exception_handler(RedirectTo)

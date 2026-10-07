@@ -21,8 +21,11 @@ item in sections 1 to 6 is done. Until then, treat this as a system on trial.
 3. Add the secrets to the `buffer-config` environment group. Deploy both
    services.
 4. Run `python -m project_buffer.cli check-config` in the Render shell.
-5. Run `python -m project_buffer.cli create-owner`, sign in, set up two-step
-   sign-in, save the recovery codes.
+5. Create the owner account: either run
+   `python -m project_buffer.cli create-owner` in the Render shell, or set
+   `ALLOW_OWNER_SETUP=true`, redeploy and use the one-time `/setup` page. Then
+   set up two-step sign-in and save the recovery codes. If you used `/setup`,
+   set `ALLOW_OWNER_SETUP` back to `false`.
 6. Confirm `/health/live`, `/health/ready` and `/health/worker` all answer ok.
 7. Confirm database backups are on in the Render dashboard.
 

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% from "_macros.html" import error_box %}
+{% block title %}Create your sign-in{% endblock %}
+{% block content %}
+<h1>Create your sign-in</h1>
+<p>This page works once. It creates the single account for this site, then closes for good.</p>
+<p>After this you will set up two-step sign-in with an authenticator app.</p>
+{{ error_box(error) }}
+<form method="post" action="/setup">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label for="username">Username</label>
+  <p id="username-help" class="hint">3 to 64 characters. Letters, digits, dots, dashes or underscores.</p>
+  <input type="text" id="username" name="username" value="{{ username }}" required autocomplete="username" autocapitalize="none" spellcheck="false" aria-describedby="username-help">
+  <label for="password">Password</label>
+  <p id="password-help" class="hint">At least {{ min_length }} characters. A password manager can create and save one for you.</p>
+  <input type="password" id="password" name="password" required minlength="{{ min_length }}" autocomplete="new-password" aria-describedby="password-help">
+  <label for="confirm_password">Password again</label>
+  <input type="password" id="confirm_password" name="confirm_password" required minlength="{{ min_length }}" autocomplete="new-password">
+  <button type="submit">Create sign-in</button>
+</form>
+{% endblock %}

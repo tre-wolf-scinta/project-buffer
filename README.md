@@ -269,11 +269,18 @@ here is automatic. You do each step.
    service's address, for example `https://buffer-web-xxxx.onrender.com`.
 5. Trigger a manual deploy of `buffer-web`, then of `buffer-worker`.
 6. The web service runs `alembic upgrade head` before each deploy takes traffic.
-7. Open the Shell tab of `buffer-web` and create your account:
+7. Create your account. Either way works; the browser page is easier with a
+   screen reader and a password manager.
+   - In the browser: set `ALLOW_OWNER_SETUP=true` in `buffer-config`, redeploy
+     `buffer-web`, open `/setup`, and create your sign-in. The page only works
+     while no account exists and answers "not found" afterwards. Set the value
+     back to `false` once you are in. Do this before pointing Twilio at the
+     app, so the site holds no messages while the page is open.
+   - In the Shell tab of `buffer-web`:
 
-   ```bash
-   python -m project_buffer.cli create-owner
-   ```
+     ```bash
+     python -m project_buffer.cli create-owner
+     ```
 
 8. Check the three health addresses. Each should answer with status ok.
    - `/health/live`: the process is running.
